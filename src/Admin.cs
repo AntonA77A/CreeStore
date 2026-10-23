@@ -277,6 +277,9 @@ namespace CreeStore
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, string lParam);
 
+        // Diese Felder von apps.json bearbeitet das Formular; alle anderen bleiben unangetastet
+        public static readonly string[] Keys = { "name", "description", "author", "repo", "asset", "url", "version", "args", "type" };
+
         readonly TextBox name, description, author, repo, asset, url, args, version;
         readonly ComboBox type;
 
@@ -346,6 +349,27 @@ namespace CreeStore
         public void Clear()
         {
             SetApp(new Dictionary<string, string>());
+        }
+
+        public static Dictionary<string, string> FromApp(Dictionary<string, object> app)
+        {
+            var f = new Dictionary<string, string>();
+            foreach (string key in Keys) f[key] = Util.Str(app, key);
+            return f;
+        }
+
+        // Bearbeitete Felder übernehmen, Reihenfolge und unbekannte Felder (z.B. uninstallArgs) behalten
+        public static Dictionary<string, object> Merge(Dictionary<string, object> original, Dictionary<string, object> edited)
+        {
+            var result = new Dictionary<string, object>();
+            foreach (var kv in original)
+            {
+                if (Array.IndexOf(Keys, kv.Key) < 0) result[kv.Key] = kv.Value;
+                else if (edited.ContainsKey(kv.Key)) result[kv.Key] = edited[kv.Key];
+            }
+            foreach (var kv in edited)
+                if (!result.ContainsKey(kv.Key)) result[kv.Key] = kv.Value;
+            return result;
         }
 
         static string Get(Dictionary<string, string> f, string key)
@@ -438,9 +462,9 @@ namespace CreeStore
         readonly Label status;
         readonly TabPage requestsTab, appsTab;
         readonly ListView requests, appList;
-        readonly AppEditor editor;
-        readonly SplitContainer split;
-        readonly Button reload, logout, accept, reject, check, openIssue, remove;
+        readonly AppEditor editor, appEditor;
+        readonly SplitContainer split, appsSplit;
+        readonly Button reload, logout, accept, reject, check, openIssue, save, checkApp, remove;
 
         static string RepoPath
         {
@@ -488,7 +512,7 @@ namespace CreeStore
             reject = ActionButton("✕ Ablehnen", Color.FromArgb(220, 90, 80));
             reject.Click += (s, e) => Reject();
             check = ActionButton("Download prüfen", SystemColors.Control);
-            check.Click += (s, e) => CheckDownload();
+            check.Click += (s, e) => CheckDownload(editor);
             openIssue = ActionButton("Auf GitHub öffnen", SystemColors.Control);
             openIssue.Click += (s, e) =>
             {
@@ -515,14 +539,38 @@ namespace CreeStore
             requestsTab.Controls.Add(split);
 
             // Tab "Apps im Store"
-            appList = MakeList(new[] { "Name", "Quelle", "Art", "Version" }, new[] { 200, 420, 100, 90 });
+            appList = MakeList(new[] { "Name", "Quelle", "Art", "Version" }, new[] { 140, 200, 70, 60 });
+            appList.SelectedIndexChanged += (s, e) =>
+            {
+                var app = SelectedApp();
+                if (app == null) appEditor.Clear();
+                else appEditor.SetApp(AppEditor.FromApp(app));
+            };
+            appEditor = new AppEditor { Dock = DockStyle.Fill };
+            save = ActionButton("✓ Speichern", Color.FromArgb(94, 190, 70));
+            save.Click += (s, e) => SaveApp();
+            checkApp = ActionButton("Download prüfen", SystemColors.Control);
+            checkApp.Click += (s, e) => CheckDownload(appEditor);
             remove = ActionButton("App entfernen", Color.FromArgb(220, 90, 80));
             remove.Click += (s, e) => RemoveApp();
             var appButtons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 48, Padding = new Padding(6, 6, 6, 0) };
-            appButtons.Controls.Add(remove);
+            appButtons.Controls.AddRange(new Control[] { save, checkApp, remove });
+            var appHint = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = 30,
+                Padding = new Padding(10, 8, 0, 0),
+                ForeColor = Color.DimGray,
+                Text = "App links auswählen, Felder ändern, Speichern – der Store zeigt es sofort."
+            };
+
+            appsSplit = new SplitContainer { Dock = DockStyle.Fill, FixedPanel = FixedPanel.Panel1 };
+            appsSplit.Panel1.Controls.Add(appList);
+            appsSplit.Panel2.Controls.Add(appEditor);
+            appsSplit.Panel2.Controls.Add(appHint);
+            appsSplit.Panel2.Controls.Add(appButtons);
             appsTab = new TabPage("Apps im Store");
-            appsTab.Controls.Add(appList);
-            appsTab.Controls.Add(appButtons);
+            appsTab.Controls.Add(appsSplit);
 
             var tabs = new TabControl { Dock = DockStyle.Fill, Padding = new Point(14, 5) };
             tabs.TabPages.Add(requestsTab);
@@ -532,7 +580,11 @@ namespace CreeStore
             Controls.Add(top);
             Controls.Add(status);
 
-            Load += (s, e) => split.SplitterDistance = 480;
+            Load += (s, e) =>
+            {
+                split.SplitterDistance = 480;
+                appsSplit.SplitterDistance = 480;
+            };
             Shown += async (s, e) => await SignIn(false);
             SetBusy(true);
         }
@@ -585,7 +637,7 @@ namespace CreeStore
         void SetBusy(bool value)
         {
             busy = value;
-            foreach (Control c in new Control[] { reload, logout, accept, reject, check, openIssue, remove })
+            foreach (Control c in new Control[] { reload, logout, accept, reject, check, openIssue, save, checkApp, remove })
                 c.Enabled = !value;
             UseWaitCursor = value;
         }
@@ -739,9 +791,10 @@ namespace CreeStore
                     source,
                     Util.Str(app, "type") == "portable" ? "Portabel" : "Installer",
                     Util.Str(app, "version") ?? "neueste"
-                }));
+                }) { Tag = app });
             }
             appList.EndUpdate();
+            appEditor.Clear();
 
             requestsTab.Text = "Anfragen (" + issues.Count + ")";
             appsTab.Text = "Apps im Store (" + catalog.Apps.Count + ")";
@@ -895,10 +948,10 @@ namespace CreeStore
             }
         }
 
-        async void CheckDownload()
+        async void CheckDownload(AppEditor source)
         {
             Dictionary<string, object> app;
-            string invalid = editor.TryGetApp(out app);
+            string invalid = source.TryGetApp(out app);
             if (invalid != null)
             {
                 MessageBox.Show(this, invalid, "Download prüfen", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -925,7 +978,50 @@ namespace CreeStore
             if (ok) MessageBox.Show(this, result, "Download prüfen", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // ---------- Apps entfernen ----------
+        // ---------- Apps bearbeiten & entfernen ----------
+
+        Dictionary<string, object> SelectedApp()
+        {
+            return appList.SelectedItems.Count > 0 ? appList.SelectedItems[0].Tag as Dictionary<string, object> : null;
+        }
+
+        async void SaveApp()
+        {
+            var selected = SelectedApp();
+            if (selected == null) return;
+            Dictionary<string, object> edited;
+            string invalid = appEditor.TryGetApp(out edited);
+            if (invalid != null)
+            {
+                MessageBox.Show(this, invalid, "Speichern", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string oldName = Util.Str(selected, "name");
+            string newName = (string)edited["name"];
+            bool renamed = !string.Equals(oldName, newName, StringComparison.OrdinalIgnoreCase);
+            if (renamed && catalogApps.Exists(a => string.Equals(Util.Str(a, "name"), newName, StringComparison.OrdinalIgnoreCase)))
+            {
+                MessageBox.Show(this, "Es gibt schon eine App namens „" + newName + "“.", "Speichern", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            bool ok = await Run(newName + " wird gespeichert…", () =>
+            {
+                Catalog catalog = Catalog.Load(api);
+                int i = catalog.IndexOf(oldName);
+                if (i < 0) throw new Exception(oldName + " ist nicht mehr in apps.json.");
+                catalog.Apps[i] = AppEditor.Merge(catalog.Apps[i], edited);
+                catalog.Save(api, "App bearbeitet: " + (renamed ? oldName + " → " + newName : newName));
+            });
+            if (ok)
+            {
+                await ReloadAll();
+                foreach (ListViewItem item in appList.Items)
+                    if (item.Text == newName) item.Selected = true;
+                SetStatus(newName + " wurde gespeichert.");
+            }
+        }
 
         async void RemoveApp()
         {
