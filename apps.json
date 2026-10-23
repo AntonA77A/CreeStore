@@ -34,7 +34,8 @@
       "description": "Nützliche Zusatz-Tools für Windows von Microsoft.",
       "repo": "microsoft/PowerToys",
       "asset": "PowerToysUserSetup-*-x64.exe",
-      "args": "/quiet /norestart"
+      "args": "/quiet /norestart",
+      "uninstallArgs": "/quiet /norestart"
     },
     {
       "name": "Rufus",

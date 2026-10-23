@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -15,10 +16,21 @@ namespace CreeStore
     // Ein Eintrag aus apps.json
     class StoreApp
     {
-        public string Name, Description, Author, Repo, Url, Asset, Args, Type, Version;
+        public string Name, Description, Author, Repo, Url, Asset, Args, Type, Version, UninstallName, UninstallArgs;
         public Panel Card;
-        public Button Button;
+        public Button Button, UninstallButton;
         public Label Status;
+
+        // So heißt die App unter "Apps & Features"
+        public string RegistryName
+        {
+            get { return UninstallName ?? Name; }
+        }
+
+        public string ShortcutPath
+        {
+            get { return Path.Combine(Util.StartMenuDir, Util.SafeName(Name) + ".lnk"); }
+        }
 
         public bool Portable
         {
@@ -37,6 +49,98 @@ namespace CreeStore
                 if (!Directory.Exists(PortableDir)) return null;
                 string[] exes = Directory.GetFiles(PortableDir, "*.exe");
                 return exes.Length > 0 ? exes[0] : null;
+            }
+        }
+    }
+
+    // Eintrag unter "Apps & Features" (Uninstall-Schlüssel in der Registry)
+    class UninstallEntry
+    {
+        const string KeyPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall";
+        public string KeyName, DisplayName, Version, UninstallString, QuietUninstallString;
+
+        public static UninstallEntry Find(string name)
+        {
+            foreach (RegistryHive hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
+            {
+                foreach (RegistryView view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+                {
+                    try
+                    {
+                        using (RegistryKey root = RegistryKey.OpenBaseKey(hive, view))
+                        using (RegistryKey key = root.OpenSubKey(KeyPath))
+                        {
+                            if (key == null) continue;
+                            foreach (string sub in key.GetSubKeyNames())
+                            {
+                                using (RegistryKey k = key.OpenSubKey(sub))
+                                {
+                                    if (k == null) continue;
+                                    string displayName = k.GetValue("DisplayName") as string;
+                                    string uninstall = k.GetValue("UninstallString") as string;
+                                    if (displayName == null || uninstall == null) continue;
+                                    if (!displayName.StartsWith(name, StringComparison.OrdinalIgnoreCase)) continue;
+                                    if (Equals(k.GetValue("SystemComponent"), 1)) continue;
+                                    return new UninstallEntry
+                                    {
+                                        KeyName = sub,
+                                        DisplayName = displayName,
+                                        Version = k.GetValue("DisplayVersion") as string,
+                                        UninstallString = uninstall,
+                                        QuietUninstallString = k.GetValue("QuietUninstallString") as string
+                                    };
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            return null;
+        }
+
+        // Baut den Befehl für eine stille Deinstallation
+        public ProcessStartInfo Command(string extraArgs)
+        {
+            string exe, args;
+            Split(QuietUninstallString ?? UninstallString, out exe, out args);
+
+            if (Path.GetFileName(exe).Equals("msiexec.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                Match code = Regex.Match(UninstallString, @"\{[0-9A-Fa-f\-]+\}");
+                exe = "msiexec.exe";
+                args = "/x " + code.Value + " /passive /norestart";
+            }
+            else if (QuietUninstallString == null)
+            {
+                if (extraArgs != null)
+                    args += " " + extraArgs;
+                else if (KeyName.EndsWith("_is1", StringComparison.OrdinalIgnoreCase))
+                    args += " /VERYSILENT /SUPPRESSMSGBOXES /NORESTART"; // Inno Setup
+                else if (Path.GetFileName(exe).StartsWith("unins", StringComparison.OrdinalIgnoreCase))
+                    args += " /S"; // NSIS
+            }
+            return new ProcessStartInfo(exe, args.Trim()) { UseShellExecute = true };
+        }
+
+        static void Split(string command, out string exe, out string args)
+        {
+            command = command.Trim();
+            int end;
+            if (command.StartsWith("\"") && (end = command.IndexOf('"', 1)) > 0)
+            {
+                exe = command.Substring(1, end - 1);
+                args = command.Substring(end + 1);
+            }
+            else if ((end = command.IndexOf(".exe", StringComparison.OrdinalIgnoreCase)) >= 0)
+            {
+                exe = command.Substring(0, end + 4);
+                args = command.Substring(end + 4);
+            }
+            else
+            {
+                exe = command;
+                args = "";
             }
         }
     }
@@ -201,7 +305,9 @@ namespace CreeStore
                         Asset = Util.Str(d, "asset"),
                         Args = Util.Str(d, "args"),
                         Type = Util.Str(d, "type"),
-                        Version = Util.Str(d, "version")
+                        Version = Util.Str(d, "version"),
+                        UninstallName = Util.Str(d, "uninstallName"),
+                        UninstallArgs = Util.Str(d, "uninstallArgs")
                     };
                     if (string.IsNullOrEmpty(a.Name) || (a.Repo == null && a.Url == null)) continue;
                     apps.Add(a);
@@ -230,7 +336,7 @@ namespace CreeStore
 
         Panel MakeCard(StoreApp a)
         {
-            var card = new Panel { Size = new Size(300, 164), Margin = new Padding(8), BackColor = CardBg };
+            var card = new Panel { Size = new Size(300, 194), Margin = new Padding(8), BackColor = CardBg };
 
             var name = new Label
             {
@@ -260,17 +366,20 @@ namespace CreeStore
             };
             a.Status = new Label
             {
-                Location = new Point(14, 126),
-                Size = new Size(150, 26),
+                Location = new Point(14, 120),
+                Size = new Size(272, 24),
                 TextAlign = ContentAlignment.MiddleLeft,
                 ForeColor = Green,
                 AutoEllipsis = true
             };
+            a.UninstallButton = MakeButton("Deinstallieren", 130);
+            a.UninstallButton.Location = new Point(14, 150);
+            a.UninstallButton.Click += (s, e) => OnUninstall(a);
             a.Button = MakeButton("Installieren", 116);
-            a.Button.Location = new Point(170, 124);
+            a.Button.Location = new Point(170, 150);
             a.Button.Click += (s, e) => OnAppButton(a);
 
-            card.Controls.AddRange(new Control[] { name, meta, desc, a.Status, a.Button });
+            card.Controls.AddRange(new Control[] { name, meta, desc, a.Status, a.UninstallButton, a.Button });
             a.Card = card;
             RefreshCard(a);
             return card;
@@ -280,7 +389,18 @@ namespace CreeStore
         {
             string v;
             bool isInstalled = installed.TryGetValue(a.Name, out v);
-            if (a.Portable && a.PortableExe == null) isInstalled = false;
+            if (a.Portable)
+            {
+                if (a.PortableExe == null) isInstalled = false;
+            }
+            else
+            {
+                // Windows weiß am besten, ob die App (noch) installiert ist
+                UninstallEntry entry = UninstallEntry.Find(a.RegistryName);
+                isInstalled = entry != null;
+                if (entry != null && string.IsNullOrEmpty(v)) v = entry.Version;
+            }
+            a.UninstallButton.Visible = isInstalled;
 
             if (!isInstalled)
             {
@@ -397,7 +517,70 @@ namespace CreeStore
             string target = Path.Combine(a.PortableDir, file);
             File.Copy(path, target, true);
             File.Delete(path);
-            Util.CreateShortcut(Path.Combine(Util.StartMenuDir, Util.SafeName(a.Name) + ".lnk"), target, a.PortableDir);
+            Util.CreateShortcut(a.ShortcutPath, target, a.PortableDir);
+        }
+
+        // ---------- Deinstallieren ----------
+
+        async void OnUninstall(StoreApp a)
+        {
+            if (busy)
+            {
+                status.Text = "Bitte warten – es läuft schon eine Installation.";
+                return;
+            }
+            if (MessageBox.Show(this, a.Name + " wirklich deinstallieren?", "CreeStore",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+
+            busy = true;
+            a.Button.Enabled = a.UninstallButton.Enabled = false;
+            a.Status.Text = "Deinstalliere…";
+            status.Text = a.Name + " wird deinstalliert…";
+            string error = null;
+            try
+            {
+                if (a.Portable)
+                {
+                    if (Directory.Exists(a.PortableDir)) Directory.Delete(a.PortableDir, true);
+                    File.Delete(a.ShortcutPath);
+                }
+                else
+                {
+                    UninstallEntry entry = UninstallEntry.Find(a.RegistryName);
+                    if (entry == null) throw new Exception("Kein Deinstallationseintrag in Windows gefunden.");
+
+                    using (Process p = Process.Start(entry.Command(a.UninstallArgs)))
+                        if (p != null) await Task.Run(() => p.WaitForExit());
+
+                    // Viele Uninstaller kopieren sich nach %TEMP% und laufen dort weiter
+                    for (int i = 0; i < 120 && UninstallEntry.Find(a.RegistryName) != null; i++)
+                        await Task.Delay(1000);
+                    if (UninstallEntry.Find(a.RegistryName) != null)
+                        throw new Exception("Die Deinstallation wurde nicht abgeschlossen.");
+                }
+
+                installed.Remove(a.Name);
+                SaveInstalled();
+                status.Text = a.Name + " wurde deinstalliert.";
+            }
+            catch (Win32Exception ex)
+            {
+                error = ex.NativeErrorCode == 1223 ? "Deinstallation abgebrochen." : ex.Message;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+            }
+
+            busy = false;
+            a.Button.Enabled = a.UninstallButton.Enabled = true;
+            RefreshCard(a);
+            if (error != null)
+            {
+                status.Text = a.Name + ": " + error;
+                MessageBox.Show(this, error, a.Name + " – Deinstallation fehlgeschlagen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         async Task RunInstaller(StoreApp a, string path, string file)

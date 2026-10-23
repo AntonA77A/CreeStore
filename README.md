@@ -28,6 +28,8 @@ Einfach `apps.json` im Repo bearbeiten – der Store lädt sie bei jedem Start n
 | `args`        | Parameter für die stille Installation, z.B. `/S` oder `/VERYSILENT`       |
 | `type`        | `portable` = exe nur kopieren + Startmenü-Verknüpfung, statt installieren |
 | `version`     | Optional, damit der Store Updates anzeigen kann                          |
+| `uninstallName` | Optional: Name unter „Apps & Features“, falls anders als `name`         |
+| `uninstallArgs` | Optional: Parameter für stilles Deinstallieren (Inno/NSIS/MSI werden erkannt) |
 
 ## Selbst bauen
 
