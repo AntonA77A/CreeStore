@@ -1,14 +1,6 @@
 {
   "apps": [
     {
-      "name": "Elvuro",
-      "description": "Elvuro – die App von AntonA77A und benny.",
-      "author": "AntonA77A & Xniceguess",
-      "url": "https://github.com/AntonA77A/CreeStore/raw/main/downloads/Elvuro-Setup.exe",
-      "version": "1.0.0",
-      "args": "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER"
-    },
-    {
       "name": "Notepad++",
       "description": "Schneller Texteditor mit Syntax-Hervorhebung für viele Programmiersprachen.",
       "repo": "notepad-plus-plus/notepad-plus-plus",
