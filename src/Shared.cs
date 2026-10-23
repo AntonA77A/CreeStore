@@ -99,8 +99,50 @@ namespace CreeStore
             return name;
         }
 
-        // Fragt die GitHub-API nach dem neuesten Release und sucht die passende Datei
+        // Sucht die passende Datei im neuesten Release. Zuerst über github.com,
+        // weil die API ohne Anmeldung nur 60 Anfragen pro Stunde erlaubt.
         public static ReleaseAsset LatestAsset(string repo, string pattern)
+        {
+            try
+            {
+                return LatestAssetWeb(repo, pattern);
+            }
+            catch (WebException)
+            {
+                return LatestAssetApi(repo, pattern);
+            }
+        }
+
+        static ReleaseAsset LatestAssetWeb(string repo, string pattern)
+        {
+            // /releases/latest leitet auf /releases/tag/<tag> weiter
+            var req = (HttpWebRequest)WebRequest.Create("https://github.com/" + repo + "/releases/latest");
+            req.Method = "HEAD";
+            req.AllowAutoRedirect = false;
+            req.UserAgent = "CreeStore/" + BuildInfo.Version;
+            string location;
+            using (var resp = (HttpWebResponse)req.GetResponse())
+                location = resp.Headers["Location"] ?? "";
+
+            int i = location.IndexOf("/releases/tag/", StringComparison.Ordinal);
+            if (i < 0) throw new Exception(repo + " hat noch kein Release.");
+            string tag = Uri.UnescapeDataString(location.Substring(i + "/releases/tag/".Length));
+
+            string html;
+            using (var wc = NewClient())
+                html = wc.DownloadString("https://github.com/" + repo + "/releases/expanded_assets/" + Uri.EscapeDataString(tag));
+
+            foreach (Match m in Regex.Matches(html, "href=\"(/[^\"]+/releases/download/[^\"]+)\""))
+            {
+                string href = System.Net.WebUtility.HtmlDecode(m.Groups[1].Value);
+                string name = Uri.UnescapeDataString(href.Substring(href.LastIndexOf('/') + 1));
+                if (WildMatch(name, pattern))
+                    return new ReleaseAsset { Url = "https://github.com" + href, Version = tag, FileName = name };
+            }
+            throw new Exception("Keine passende Datei (" + (pattern ?? "*.exe") + ") im neuesten Release von " + repo + " gefunden.");
+        }
+
+        static ReleaseAsset LatestAssetApi(string repo, string pattern)
         {
             string json;
             using (var wc = NewClient())
