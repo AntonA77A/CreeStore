@@ -300,7 +300,7 @@ namespace CreeStore
             author = AddRow(grid, "Autor", "leer = Besitzer des Repos");
             repo = AddRow(grid, "GitHub-Repo", "besitzer/name");
             asset = AddRow(grid, "Datei im Release", "*.exe");
-            url = AddRow(grid, "Direkter Link", "https://… (statt Repo)");
+            url = AddRow(grid, "Direkter Link", "http(s)://… (statt Repo)");
             args = AddRow(grid, "Parameter (still)", "/S, /VERYSILENT, /quiet …");
             version = AddRow(grid, "Version", "optional, für Update-Hinweis");
             type = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top };
@@ -362,7 +362,8 @@ namespace CreeStore
             if (n.Length == 0) return "Bitte einen Namen eingeben.";
             if (r.Length == 0 && u.Length == 0) return "Bitte ein GitHub-Repo oder einen direkten Link angeben.";
             if (r.Length > 0 && !Regex.IsMatch(r, @"^[\w.-]+/[\w.-]+$")) return "Das GitHub-Repo muss so aussehen: besitzer/name";
-            if (u.Length > 0 && !u.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) return "Der direkte Link muss mit https:// anfangen.";
+            if (u.Length > 0 && !u.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && !u.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                return "Der direkte Link muss mit http:// oder https:// anfangen.";
 
             app = new Dictionary<string, object>();
             Put(app, "name", n);
