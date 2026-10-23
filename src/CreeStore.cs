@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -161,9 +162,24 @@ namespace CreeStore
             string error = null;
             try
             {
-                string json;
-                using (var wc = Util.NewClient())
-                    json = await wc.DownloadStringTaskAsync(new Uri(url));
+                string json = null;
+                try
+                {
+                    // Die API ist sofort aktuell, raw.githubusercontent.com cached bis zu 5 Minuten
+                    using (var wc = Util.NewClient())
+                    {
+                        wc.Headers[HttpRequestHeader.Accept] = "application/vnd.github.raw";
+                        json = await wc.DownloadStringTaskAsync(new Uri("https://api.github.com/repos/" + BuildInfo.Repo +
+                            "/contents/apps.json?ref=" + BuildInfo.Branch));
+                    }
+                }
+                catch (WebException) { }
+                if (json == null)
+                {
+                    // z.B. API-Limit erreicht
+                    using (var wc = Util.NewClient())
+                        json = await wc.DownloadStringTaskAsync(new Uri(url));
+                }
 
                 object root = Util.ParseJson(json);
                 var arr = root as object[];
