@@ -59,6 +59,47 @@ if (-not (Test-Path $icon)) {
     $w.Close()
 }
 
+# Ist assets\creestore.ico in Wahrheit ein Bild (z.B. umbenanntes PNG), daraus ein echtes Icon machen
+$bytes = [System.IO.File]::ReadAllBytes($icon)
+$isIco = $bytes.Length -gt 6 -and $bytes[0] -eq 0 -and $bytes[1] -eq 0 -and $bytes[2] -eq 1 -and $bytes[3] -eq 0
+if (-not $isIco) {
+    Add-Type -AssemblyName System.Drawing
+    $src = [System.Drawing.Image]::FromStream((New-Object System.IO.MemoryStream (, $bytes)))
+    $images = @()
+    foreach ($size in 16, 24, 32, 48, 64, 128, 256) {
+        $bmp = New-Object System.Drawing.Bitmap $size, $size
+        $g = [System.Drawing.Graphics]::FromImage($bmp)
+        $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+        $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+        # Seitenverhältnis behalten und zentrieren
+        $scale = [Math]::Min($size / $src.Width, $size / $src.Height)
+        $w = [int]($src.Width * $scale); $h = [int]($src.Height * $scale)
+        $g.DrawImage($src, [int](($size - $w) / 2), [int](($size - $h) / 2), $w, $h)
+        $g.Dispose()
+        $ms = New-Object System.IO.MemoryStream
+        $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        $images += , @($size, $ms.ToArray())
+    }
+    $src.Dispose()
+
+    $icon = Join-Path $obj "creestore.ico"
+    $fs = [System.IO.File]::Create($icon)
+    $w = New-Object System.IO.BinaryWriter $fs
+    $w.Write([UInt16]0); $w.Write([UInt16]1); $w.Write([UInt16]$images.Count)
+    $offset = 6 + 16 * $images.Count
+    foreach ($img in $images) {
+        $dim = if ($img[0] -ge 256) { 0 } else { $img[0] }
+        $w.Write([Byte]$dim); $w.Write([Byte]$dim); $w.Write([Byte]0); $w.Write([Byte]0)
+        $w.Write([UInt16]1); $w.Write([UInt16]32)
+        $w.Write([UInt32]$img[1].Length); $w.Write([UInt32]$offset)
+        $offset += $img[1].Length
+    }
+    foreach ($img in $images) { $w.Write($img[1]) }
+    $w.Close()
+}
+
 @"
 namespace CreeStore
 {
