@@ -31,6 +31,17 @@ Einfach `apps.json` im Repo bearbeiten – der Store lädt sie bei jedem Start n
 | `uninstallName` | Optional: Name unter „Apps & Features“, falls anders als `name`         |
 | `uninstallArgs` | Optional: Parameter für stilles Deinstallieren (Inno/NSIS/MSI werden erkannt) |
 
+## Admin: Anfragen & Apps verwalten
+
+Im Store gibt es den Button **„App einreichen“**. Er öffnet ein Formular auf GitHub, und die Anfrage landet als Issue mit dem Label `app-anfrage` im Repo.
+
+`dist\CreeStoreAdmin.exe` (wird von `build.ps1` gebaut, ist nicht im Release):
+
+- **Anfragen**: Felder prüfen/anpassen, dann *Annehmen* (trägt die App in `apps.json` ein und schließt das Issue) oder *Ablehnen* (Kommentar mit Grund, Issue wird geschlossen). *Download prüfen* testet, ob die Datei gefunden wird.
+- **Apps im Store**: Apps aus `apps.json` entfernen.
+
+Anmeldung: nutzt automatisch den GitHub-Login von Git. Sonst fragt die App nach einem Token mit `repo`-Berechtigung (wird verschlüsselt gespeichert).
+
 ## Selbst bauen
 
 ```

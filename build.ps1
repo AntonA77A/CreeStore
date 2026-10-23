@@ -152,4 +152,8 @@ if ($LASTEXITCODE) { throw "CreeStore.exe konnte nicht gebaut werden" }
 & $csc @common "/out:$dist\CreeStoreSetup.exe" "/resource:$dist\CreeStore.exe,CreeStore.exe" @shared "$root\src\Setup.cs"
 if ($LASTEXITCODE) { throw "CreeStoreSetup.exe konnte nicht gebaut werden" }
 
-Write-Host "Fertig: $dist\CreeStoreSetup.exe  (Repo: $Repo, Version: $Version)"
+# Admin-App (wird nicht ins Release gepackt)
+& $csc @common "/r:System.Security.dll" "/out:$dist\CreeStoreAdmin.exe" @shared "$root\src\Admin.cs"
+if ($LASTEXITCODE) { throw "CreeStoreAdmin.exe konnte nicht gebaut werden" }
+
+Write-Host "Fertig:$dist\CreeStoreSetup.exe  (Repo: $Repo, Version: $Version)"

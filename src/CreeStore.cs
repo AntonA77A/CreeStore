@@ -202,6 +202,11 @@ namespace CreeStore
             refresh.Location = new Point(494, 18);
             refresh.Click += (s, e) => LoadCatalog();
 
+            // Anfragen landen als Issue im Repo und werden in CreeStoreAdmin bearbeitet
+            var submit = MakeButton("App einreichen", 130);
+            submit.Location = new Point(614, 18);
+            submit.Click += (s, e) => Process.Start("https://github.com/" + BuildInfo.Repo + "/issues/new?template=app-anfrage.yml");
+
             updateButton = MakeButton("Store-Update", 170);
             updateButton.Visible = false;
             updateButton.BackColor = Green;
@@ -209,7 +214,7 @@ namespace CreeStore
             updateButton.Click += (s, e) => SelfUpdate();
             top.Resize += (s, e) => updateButton.Location = new Point(top.Width - updateButton.Width - 16, 18);
 
-            top.Controls.AddRange(new Control[] { title, search, refresh, updateButton });
+            top.Controls.AddRange(new Control[] { title, search, refresh, submit, updateButton });
 
             list = new FlowLayoutPanel
             {

@@ -1,0 +1,50 @@
+name: App veröffentlichen
+description: Schlage eine App für den CreeStore vor
+title: "[App] "
+labels: ["app-anfrage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Die App muss als `.exe` oder `.msi` in einem GitHub-Release liegen oder über einen direkten Download-Link erreichbar sein.
+        Ein Admin prüft die Anfrage und schaltet die App frei.
+  - type: input
+    id: name
+    attributes:
+      label: App-Name
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Beschreibung
+      description: Ein bis zwei Sätze, was die App macht.
+    validations:
+      required: true
+  - type: input
+    id: repo
+    attributes:
+      label: GitHub-Repo
+      description: "z.B. notepad-plus-plus/notepad-plus-plus – leer lassen, wenn du unten einen direkten Link angibst"
+  - type: input
+    id: asset
+    attributes:
+      label: Datei im Release
+      description: "Welche Datei aus dem Release, z.B. *-x64.exe"
+  - type: input
+    id: url
+    attributes:
+      label: Direkter Download-Link
+      description: Nur nötig, wenn die App nicht in einem GitHub-Release liegt.
+  - type: input
+    id: args
+    attributes:
+      label: Parameter für stille Installation
+      description: "z.B. /S (NSIS), /VERYSILENT (Inno Setup), /quiet (MSI)"
+  - type: dropdown
+    id: type
+    attributes:
+      label: Art
+      options:
+        - Installer
+        - Portabel (nur eine exe)
