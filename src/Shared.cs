@@ -103,17 +103,28 @@ namespace CreeStore
         // weil die API ohne Anmeldung nur 60 Anfragen pro Stunde erlaubt.
         public static ReleaseAsset LatestAsset(string repo, string pattern)
         {
+            return LatestAsset(repo, pattern, null);
+        }
+
+        // exclude: Dateien, die trotz passendem pattern nicht genommen werden (z.B. "*steam*")
+        public static ReleaseAsset LatestAsset(string repo, string pattern, string exclude)
+        {
             try
             {
-                return LatestAssetWeb(repo, pattern);
+                return LatestAssetWeb(repo, pattern, exclude);
             }
             catch (WebException)
             {
-                return LatestAssetApi(repo, pattern);
+                return LatestAssetApi(repo, pattern, exclude);
             }
         }
 
-        static ReleaseAsset LatestAssetWeb(string repo, string pattern)
+        static bool Wanted(string name, string pattern, string exclude)
+        {
+            return WildMatch(name, pattern) && (string.IsNullOrEmpty(exclude) || !WildMatch(name, exclude));
+        }
+
+        static ReleaseAsset LatestAssetWeb(string repo, string pattern, string exclude)
         {
             // /releases/latest leitet auf /releases/tag/<tag> weiter
             var req = (HttpWebRequest)WebRequest.Create("https://github.com/" + repo + "/releases/latest");
@@ -136,13 +147,13 @@ namespace CreeStore
             {
                 string href = System.Net.WebUtility.HtmlDecode(m.Groups[1].Value);
                 string name = Uri.UnescapeDataString(href.Substring(href.LastIndexOf('/') + 1));
-                if (WildMatch(name, pattern))
+                if (Wanted(name, pattern, exclude))
                     return new ReleaseAsset { Url = "https://github.com" + href, Version = tag, FileName = name };
             }
             throw new Exception("Keine passende Datei (" + (pattern ?? "*.exe") + ") im neuesten Release von " + repo + " gefunden.");
         }
 
-        static ReleaseAsset LatestAssetApi(string repo, string pattern)
+        static ReleaseAsset LatestAssetApi(string repo, string pattern, string exclude)
         {
             string json;
             using (var wc = NewClient())
@@ -156,7 +167,7 @@ namespace CreeStore
                 {
                     var asset = (Dictionary<string, object>)o;
                     string name = Str(asset, "name");
-                    if (name != null && WildMatch(name, pattern))
+                    if (name != null && Wanted(name, pattern, exclude))
                     {
                         return new ReleaseAsset
                         {

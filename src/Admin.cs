@@ -958,12 +958,15 @@ namespace CreeStore
                 return;
             }
 
+            // "exclude" hat kein eigenes Feld, kommt aus dem gespeicherten Eintrag
+            var stored = source == appEditor ? SelectedApp() : null;
+            string exclude = stored != null ? Util.Str(stored, "exclude") : null;
             string result = null;
             bool ok = await Run("Prüfe Download…", () =>
             {
                 if (app.ContainsKey("repo"))
                 {
-                    ReleaseAsset found = Util.LatestAsset((string)app["repo"], app.ContainsKey("asset") ? (string)app["asset"] : null);
+                    ReleaseAsset found = Util.LatestAsset((string)app["repo"], app.ContainsKey("asset") ? (string)app["asset"] : null, exclude);
                     result = "Gefunden: " + found.FileName + "\nVersion: " + found.Version;
                 }
                 else

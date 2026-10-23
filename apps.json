@@ -42,6 +42,14 @@
       "asset": "Elvuro-Setup.exe",
       "url": "https://elvuro.pages.dev/Elvuro-Setup.exe",
       "author": "Xniceguess"
+    },
+    {
+      "name": "The Powder Toy",
+      "description": "Physik-Sandbox: Pulver, Flüssigkeiten, Gase, Strom und Explosionen simulieren.",
+      "repo": "The-Powder-Toy/The-Powder-Toy",
+      "asset": "powder-v*-x86_64-windows-mingw.exe",
+      "exclude": "*steam*",
+      "type": "portable"
     }
   ]
 }

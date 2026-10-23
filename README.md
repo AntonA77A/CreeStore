@@ -24,6 +24,7 @@ Einfach `apps.json` im Repo bearbeiten – der Store lädt sie bei jedem Start n
 | `description` | Beschreibung                                                              |
 | `repo`        | GitHub-Repo, aus dessen neuestem Release geladen wird (`owner/name`)      |
 | `asset`       | Welche Datei aus dem Release, z.B. `*-x64.exe` (Standard: `*.exe`)       |
+| `exclude`     | Optional: Dateien ausschließen, die auch zu `asset` passen, z.B. `*steam*` |
 | `url`         | Statt `repo`: direkter Download-Link                                      |
 | `args`        | Parameter für die stille Installation, z.B. `/S` oder `/VERYSILENT`       |
 | `type`        | `portable` = exe nur kopieren + Startmenü-Verknüpfung, statt installieren |

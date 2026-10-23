@@ -16,7 +16,7 @@ namespace CreeStore
     // Ein Eintrag aus apps.json
     class StoreApp
     {
-        public string Name, Description, Author, Repo, Url, Asset, Args, Type, Version, UninstallName, UninstallArgs;
+        public string Name, Description, Author, Repo, Url, Asset, Exclude, Args, Type, Version, UninstallName, UninstallArgs;
         public Panel Card;
         public Button Button, UninstallButton;
         public Label Status;
@@ -308,6 +308,7 @@ namespace CreeStore
                         Repo = Util.Str(d, "repo"),
                         Url = Util.Str(d, "url"),
                         Asset = Util.Str(d, "asset"),
+                        Exclude = Util.Str(d, "exclude"),
                         Args = Util.Str(d, "args"),
                         Type = Util.Str(d, "type"),
                         Version = Util.Str(d, "version"),
@@ -465,7 +466,7 @@ namespace CreeStore
                 if (url == null)
                 {
                     a.Status.Text = "Suche Release…";
-                    ReleaseAsset rel = await Task.Run(() => Util.LatestAsset(a.Repo, a.Asset));
+                    ReleaseAsset rel = await Task.Run(() => Util.LatestAsset(a.Repo, a.Asset, a.Exclude));
                     url = rel.Url;
                     version = rel.Version;
                     file = rel.FileName;
