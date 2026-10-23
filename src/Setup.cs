@@ -95,7 +95,7 @@ namespace CreeStore
             BackColor = Color.FromArgb(24, 26, 27);
             ForeColor = Color.FromArgb(225, 228, 230);
             Font = new Font("Segoe UI", 10f);
-            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
+            Icon = Util.AppIcon() ?? Icon;
 
             var title = new Label
             {

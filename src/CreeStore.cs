@@ -175,7 +175,7 @@ namespace CreeStore
             BackColor = Bg;
             ForeColor = Fg;
             Font = new Font("Segoe UI", 9.5f);
-            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
+            Icon = Util.AppIcon() ?? Icon;
 
             var top = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Bar };
             var title = new Label

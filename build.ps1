@@ -64,9 +64,13 @@ $bytes = [System.IO.File]::ReadAllBytes($icon)
 $isIco = $bytes.Length -gt 6 -and $bytes[0] -eq 0 -and $bytes[1] -eq 0 -and $bytes[2] -eq 1 -and $bytes[3] -eq 0
 if (-not $isIco) {
     Add-Type -AssemblyName System.Drawing
-    $src = [System.Drawing.Image]::FromStream((New-Object System.IO.MemoryStream (, $bytes)))
+    $big = [System.Drawing.Image]::FromStream((New-Object System.IO.MemoryStream (, $bytes)))
+    # Für Taskleiste & Co. (bis 48px) ein vereinfachtes Bild ohne Schrift, falls vorhanden
+    $smallFile = Join-Path $root "assets\creestore-small.png"
+    $small = if (Test-Path $smallFile) { [System.Drawing.Image]::FromFile($smallFile) } else { $big }
     $images = @()
-    foreach ($size in 16, 24, 32, 48, 64, 128, 256) {
+    foreach ($size in 16, 20, 24, 32, 40, 48, 64, 128, 256) {
+        $src = if ($size -le 48) { $small } else { $big }
         $bmp = New-Object System.Drawing.Bitmap $size, $size
         $g = [System.Drawing.Graphics]::FromImage($bmp)
         $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
@@ -77,12 +81,35 @@ if (-not $isIco) {
         $w = [int]($src.Width * $scale); $h = [int]($src.Height * $scale)
         $g.DrawImage($src, [int](($size - $w) / 2), [int](($size - $h) / 2), $w, $h)
         $g.Dispose()
-        $ms = New-Object System.IO.MemoryStream
-        $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+        if ($size -ge 256) {
+            # 256px als PNG
+            $ms = New-Object System.IO.MemoryStream
+            $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+            $data = $ms.ToArray()
+        } else {
+            # Kleine Größen als klassisches BMP, PNG versteht dort nicht jedes Programm
+            $rect = New-Object System.Drawing.Rectangle 0, 0, $size, $size
+            $lock = $bmp.LockBits($rect, [System.Drawing.Imaging.ImageLockMode]::ReadOnly, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+            $pixels = New-Object byte[] ($size * $size * 4)
+            [System.Runtime.InteropServices.Marshal]::Copy($lock.Scan0, $pixels, 0, $pixels.Length)
+            $bmp.UnlockBits($lock)
+            $maskRow = [int][Math]::Ceiling($size / 32) * 4
+            $ms = New-Object System.IO.MemoryStream
+            $bw = New-Object System.IO.BinaryWriter $ms
+            $bw.Write([UInt32]40); $bw.Write([Int32]$size); $bw.Write([Int32]($size * 2))
+            $bw.Write([UInt16]1); $bw.Write([UInt16]32); $bw.Write([UInt32]0)
+            $bw.Write([UInt32]($pixels.Length + $maskRow * $size))
+            $bw.Write([Int32]0); $bw.Write([Int32]0); $bw.Write([UInt32]0); $bw.Write([UInt32]0)
+            for ($row = $size - 1; $row -ge 0; $row--) { $bw.Write($pixels, $row * $size * 4, $size * 4) }
+            $bw.Write((New-Object byte[] ($maskRow * $size)))
+            $bw.Flush()
+            $data = $ms.ToArray()
+        }
         $bmp.Dispose()
-        $images += , @($size, $ms.ToArray())
+        $images += , @($size, $data)
     }
-    $src.Dispose()
+    if ($small -ne $big) { $small.Dispose() }
+    $big.Dispose()
 
     $icon = Join-Path $obj "creestore.ico"
     $fs = [System.IO.File]::Create($icon)
@@ -114,7 +141,7 @@ namespace CreeStore
 
 $common = @(
     "/nologo", "/optimize+", "/target:winexe", "/codepage:65001",
-    "/win32icon:$icon",
+    "/win32icon:$icon", "/resource:$icon,app.ico",
     "/r:System.Web.Extensions.dll", "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll"
 )
 $shared = @("$root\src\Shared.cs", "$obj\BuildInfo.cs")

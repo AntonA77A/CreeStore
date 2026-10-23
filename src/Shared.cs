@@ -136,6 +136,20 @@ namespace CreeStore
             return Regex.IsMatch(name, rx, RegexOptions.IgnoreCase);
         }
 
+        // Das Icon mit allen Größen; ExtractAssociatedIcon liefert nur 32px und sieht in der Taskleiste matschig aus
+        public static System.Drawing.Icon AppIcon()
+        {
+            try
+            {
+                using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("app.ico"))
+                    return s == null ? null : new System.Drawing.Icon(s);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         // .lnk-Datei über WScript.Shell anlegen
         public static void CreateShortcut(string lnkPath, string target, string workDir)
         {
