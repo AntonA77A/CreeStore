@@ -1,0 +1,39 @@
+{
+  "apps": [
+    {
+      "name": "Notepad++",
+      "description": "Schneller Texteditor mit Syntax-Hervorhebung für viele Programmiersprachen.",
+      "repo": "notepad-plus-plus/notepad-plus-plus",
+      "asset": "*Installer.x64.exe",
+      "args": "/S"
+    },
+    {
+      "name": "7-Zip",
+      "description": "Packt und entpackt ZIP, 7z, RAR und viele andere Archive.",
+      "repo": "ip7z/7zip",
+      "asset": "*-x64.exe",
+      "args": "/S"
+    },
+    {
+      "name": "ShareX",
+      "description": "Screenshots und Bildschirmaufnahmen mit vielen Extras.",
+      "repo": "ShareX/ShareX",
+      "asset": "*-setup*.exe",
+      "args": "/VERYSILENT /NORESTART"
+    },
+    {
+      "name": "PowerToys",
+      "description": "Nützliche Zusatz-Tools für Windows von Microsoft.",
+      "repo": "microsoft/PowerToys",
+      "asset": "PowerToysUserSetup-*-x64.exe",
+      "args": "/quiet /norestart"
+    },
+    {
+      "name": "Rufus",
+      "description": "Erstellt bootfähige USB-Sticks. Portabel – braucht keine Installation.",
+      "repo": "pbatard/rufus",
+      "asset": "rufus-*p.exe",
+      "type": "portable"
+    }
+  ]
+}

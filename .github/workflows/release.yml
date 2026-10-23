@@ -1,0 +1,25 @@
+name: Release
+
+# Neuer Tag (z.B. v1.0.0) -> baut CreeStoreSetup.exe und hängt sie ans GitHub-Release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        shell: powershell
+        run: .\build.ps1 -Repo "${{ github.repository }}" -Version "${{ github.ref_name }}" -Branch "${{ github.event.repository.default_branch }}"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/CreeStoreSetup.exe
+            dist/CreeStore.exe
