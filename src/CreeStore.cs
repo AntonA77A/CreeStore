@@ -9,7 +9,11 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Reflection;
 using Microsoft.Win32;
+
+[assembly: AssemblyTitle("CreeStore")]
+[assembly: AssemblyDescription("CreeStore – App-Store für Windows")]
 
 namespace CreeStore
 {
@@ -655,7 +659,9 @@ namespace CreeStore
             updateButton.Enabled = false;
             try
             {
-                string path = Path.Combine(Path.GetTempPath(), "CreeStoreSetup.exe");
+                string downloads = Path.Combine(Util.DataDir, "downloads");
+                Directory.CreateDirectory(downloads);
+                string path = Path.Combine(downloads, "CreeStoreSetup.exe");
                 using (var wc = Util.NewClient())
                 {
                     wc.DownloadProgressChanged += (s, e) => updateButton.Text = "Lade… " + e.ProgressPercentage + "%";
@@ -686,6 +692,12 @@ namespace CreeStore
                 Uninstall();
                 return;
             }
+            int parent;
+            if (args.Length > 1 && args[0] == "--uninstall-cleanup" && int.TryParse(args[1], out parent))
+            {
+                RemoveInstallDir(parent);
+                return;
+            }
             Application.Run(new StoreForm());
         }
 
@@ -699,16 +711,30 @@ namespace CreeStore
             try { File.Delete(Path.Combine(Util.DesktopDir, "CreeStore.lnk")); } catch { }
             try { Registry.CurrentUser.DeleteSubKeyTree(Util.UninstallKey, false); } catch { }
 
-            MessageBox.Show("CreeStore wurde deinstalliert.", "CreeStore");
-
-            // Ordner erst löschen, wenn diese exe beendet ist
-            Process.Start(new ProcessStartInfo
+            // Eine laufende exe kann ihren Ordner nicht löschen. Wie bei Inno Setup räumt
+            // eine Kopie im Temp-Ordner auf, sobald diese exe beendet ist.
+            try
             {
-                FileName = "cmd.exe",
-                Arguments = "/c ping 127.0.0.1 -n 3 >nul & rmdir /s /q \"" + Util.InstallDir + "\"",
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            });
+                string helper = Path.Combine(Path.GetTempPath(), "CreeStore-Uninstall.exe");
+                File.Copy(Application.ExecutablePath, helper, true);
+                Process.Start(helper, "--uninstall-cleanup " + Process.GetCurrentProcess().Id);
+            }
+            catch { }
+
+            MessageBox.Show("CreeStore wurde deinstalliert.", "CreeStore");
+        }
+
+        static void RemoveInstallDir(int parentId)
+        {
+            try { Process.GetProcessById(parentId).WaitForExit(60000); } catch (ArgumentException) { }
+
+            // Löscht immer nur den eigenen Installationsordner
+            for (int i = 0; i < 20 && Directory.Exists(Util.InstallDir); i++)
+            {
+                try { Directory.Delete(Util.InstallDir, true); }
+                catch (IOException) { System.Threading.Thread.Sleep(500); }
+                catch (UnauthorizedAccessException) { System.Threading.Thread.Sleep(500); }
+            }
         }
     }
 }

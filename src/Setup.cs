@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
+[assembly: AssemblyTitle("CreeStore Setup")]
+[assembly: AssemblyDescription("Installiert CreeStore für den aktuellen Benutzer")]
+
 namespace CreeStore
 {
     // CreeStoreSetup.exe: installiert ohne Rückfragen und startet danach CreeStore.
@@ -43,7 +46,13 @@ namespace CreeStore
             // Laufenden Store beenden, damit die exe ersetzt werden kann
             foreach (Process p in Process.GetProcessesByName("CreeStore"))
             {
-                try { p.Kill(); p.WaitForExit(5000); } catch { }
+                try
+                {
+                    // Erst freundlich schließen, nur wenn das nicht klappt beenden
+                    if (!p.CloseMainWindow() || !p.WaitForExit(3000)) p.Kill();
+                    p.WaitForExit(5000);
+                }
+                catch { }
             }
 
             Directory.CreateDirectory(Util.InstallDir);

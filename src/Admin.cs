@@ -12,6 +12,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+[assembly: System.Reflection.AssemblyTitle("CreeStore Admin")]
+[assembly: System.Reflection.AssemblyDescription("Anfragen und Apps im CreeStore verwalten")]
+
 namespace CreeStore
 {
     // GitHub-API mit Token (braucht Schreibrechte fürs Repo)

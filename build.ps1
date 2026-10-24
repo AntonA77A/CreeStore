@@ -127,7 +127,20 @@ if (-not $isIco) {
     $w.Close()
 }
 
+# Herstellerangaben in der exe; Dateien ohne sehen für Virenscanner verdächtiger aus
+$numeric = [version]"1.0.0"
+[void][version]::TryParse(($Version -replace '[^0-9.]', ''), [ref]$numeric)
+$owner = $Repo.Split("/")[0]
 @"
+using System.Reflection;
+
+[assembly: AssemblyCompany("$owner")]
+[assembly: AssemblyProduct("CreeStore")]
+[assembly: AssemblyCopyright("© $((Get-Date).Year) $owner – github.com/$Repo")]
+[assembly: AssemblyVersion("$numeric")]
+[assembly: AssemblyFileVersion("$numeric")]
+[assembly: AssemblyInformationalVersion("$Version")]
+
 namespace CreeStore
 {
     static class BuildInfo
@@ -141,7 +154,7 @@ namespace CreeStore
 
 $common = @(
     "/nologo", "/optimize+", "/target:winexe", "/codepage:65001",
-    "/win32icon:$icon", "/resource:$icon,app.ico",
+    "/win32icon:$icon", "/resource:$icon,app.ico", "/win32manifest:$root\assets\app.manifest",
     "/r:System.Web.Extensions.dll", "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll"
 )
 $shared = @("$root\src\Shared.cs", "$obj\BuildInfo.cs")
