@@ -66,6 +66,13 @@
       "repo": "termux/termux-app",
       "asset": "*universal.apk",
       "package": "com.termux"
+    },
+    {
+      "name": "The Powder Toy",
+      "description": "Physik-Sandbox: Pulver, Flüssigkeiten, Gase, Strom und Explosionen simulieren. Android-Version ist noch experimentell.",
+      "repo": "The-Powder-Toy/The-Powder-Toy",
+      "asset": "powder-v*-aarch64-android-bionic.apk",
+      "exclude": "*steam*"
     }
   ]
 }
