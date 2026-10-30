@@ -3,9 +3,15 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
-    <!-- Welche Apps aus apps.json installiert sind, steht erst zur Laufzeit fest -->
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <!-- Statt QUERY_ALL_PACKAGES (das Play Protect misstrauisch macht): nur Apps mit Startsymbol sehen.
+         Das reicht, um zu erkennen, ob eine App aus apps.json installiert ist. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
 
     <application
         android:label="@string/app_name"
