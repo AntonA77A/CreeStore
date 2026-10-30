@@ -51,5 +51,21 @@
       "exclude": "*steam*",
       "type": "portable"
     }
+  ],
+  "android": [
+    {
+      "name": "NewPipe",
+      "description": "YouTube ohne Werbung und ohne Google-Konto, mit Hintergrund-Wiedergabe und Downloads.",
+      "repo": "TeamNewPipe/NewPipe",
+      "asset": "NewPipe_*.apk",
+      "package": "org.schabi.newpipe"
+    },
+    {
+      "name": "Termux",
+      "description": "Linux-Terminal für Android mit Paketverwaltung.",
+      "repo": "termux/termux-app",
+      "asset": "*universal.apk",
+      "package": "com.termux"
+    }
   ]
 }
