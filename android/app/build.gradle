@@ -1,0 +1,56 @@
+plugins {
+    id "com.android.application"
+}
+
+// Werte kommen beim Build aus GitHub Actions (siehe .github/workflows), lokal gelten die Standardwerte
+def storeRepo = System.getenv("CREESTORE_REPO") ?: "AntonA77A/CreeStore"
+def storeBranch = System.getenv("CREESTORE_BRANCH") ?: "main"
+def storeVersion = (System.getenv("CREESTORE_VERSION") ?: "1.0.0").replaceFirst(/^[vV]/, "")
+// versionCode muss bei jedem Update steigen: 1.2.3 -> 10203
+def parts = (storeVersion.split(/[^0-9]+/).findAll { it } + ["0", "0", "0"]).take(3).collect { it as int }
+def storeVersionCode = Math.max(1, parts[0] * 10000 + parts[1] * 100 + parts[2])
+
+android {
+    namespace "de.creestore"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "de.creestore"
+        minSdk 24
+        targetSdk 35
+        versionCode storeVersionCode
+        versionName storeVersion
+        buildConfigField "String", "REPO", "\"${storeRepo}\""
+        buildConfigField "String", "BRANCH", "\"${storeBranch}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    // Damit Updates funktionieren, muss jede APK mit demselben Schlüssel signiert sein.
+    // Der kommt aus den Repo-Secrets; ohne sie wird mit dem Debug-Schlüssel signiert.
+    def keystore = System.getenv("ANDROID_KEYSTORE_FILE")
+    signingConfigs {
+        release {
+            if (keystore) {
+                storeFile file(keystore)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystore ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

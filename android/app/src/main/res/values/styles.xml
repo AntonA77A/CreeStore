@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CreeStore" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#181A1B</item>
+        <item name="android:colorPrimaryDark">#181A1B</item>
+        <item name="android:colorAccent">#5EBE46</item>
+        <item name="android:windowBackground">#181A1B</item>
+        <item name="android:statusBarColor">#181A1B</item>
+        <item name="android:navigationBarColor">#181A1B</item>
+    </style>
+</resources>
